@@ -35,6 +35,17 @@ COPY --from=wasm-builder /src/src/websockets-doom.wasm.map /usr/share/nginx/html
 # Mount point for the IWAD volume - see DOOM_WAD_PATH in docker-entrypoint.sh.
 RUN mkdir -p /wads
 
+# The compose file can run this container as an arbitrary PUID/PGID (see
+# docker-compose.yml's "user:" and PUID/PGID) so nginx can read a /wads
+# volume owned by whatever uid your host uses - not just the default nginx
+# user (101). These are the paths that uid needs to be able to write to
+# regardless of which one it ends up being: nginx's own runtime files, and
+# the two files the entrypoint generates at container start
+# (.htpasswd, config.json). None of this is sensitive - it's all
+# container-internal generated config, not the /wads mount itself, which
+# stays read-only and under your own control on the host.
+RUN chmod 777 /var/cache/nginx /run /etc/nginx /usr/share/nginx/html
+
 EXPOSE 8080
 
 ENTRYPOINT ["/docker-entrypoint.sh"]

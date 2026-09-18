@@ -107,6 +107,14 @@ only `nginx` serves it to the browser client.
 Set `DOOM_WAD_PATH` to the filename you dropped in (defaults to
 `doom1.wad`).
 
+`WAD_DIR` is mounted **read-only** into `nginx` - it can serve from there,
+never write to it. On a real Linux host, nginx also needs to actually be
+able to *read* whatever's in that directory in the first place: it runs as
+its own built-in `nginx` user (uid/gid 101) by default, which won't be able
+to read a directory owned by, say, a dedicated media/homelab user on your
+system. If you hit a permission error here, set `PUID`/`PGID` in `.env` to
+match that directory's actual owner - see `.env.example`.
+
 ## Deploying with Portainer
 
 Since the build contexts (`./gateway`, `./doom-server`, `nginx/Dockerfile`)

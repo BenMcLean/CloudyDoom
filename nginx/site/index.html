@@ -16,6 +16,10 @@
                 box-sizing: border-box;
             }
 
+            html, body {
+                height: 100%;
+            }
+
             html {
                 font-family: "VT323", monospace;
                 font-size: 12px;
@@ -25,12 +29,22 @@
                 background-color: #111;
                 color: #ccc;
                 margin: 0;
-                padding: 2ch;
+                padding: 0;
+                overflow: hidden;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
             }
 
             #container {
-                max-width: 930px;
+                position: relative;
+                width: 100vw;
+                height: 100vh;
                 margin: auto;
+                display: flex;
+                align-items: center;
+                justify-content: center;
             }
 
             .frame {
@@ -43,16 +57,24 @@
             /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
             canvas.frame {
                 background-color: black;
-                width: 800px;
-                height: 600px;
+                aspect-ratio: 4 / 3;
+                width: min(100vw, calc(100vh * 4 / 3));
+                height: min(100vh, calc(100vw * 3 / 4));
             }
 
+            /* overlay, not laid out in the flow, so a long/wrapped message can
+               never get clipped by the canvas's size budget or body's overflow:hidden */
             #status {
-                max-width: 800px;
-                margin: 1ch auto;
+                position: absolute;
+                left: 0;
+                right: 0;
+                bottom: 0.5ch;
+                max-width: 100vw;
+                padding: 0 1ch;
                 font-size: 1.4em;
                 text-align: center;
                 min-height: 1.4em;
+                text-shadow: 0 0 4px #000, 0 0 4px #000;
             }
         </style>
         <meta name="viewport" content="width=device-width,initial-scale=1" />

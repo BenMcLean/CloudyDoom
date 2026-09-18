@@ -27,8 +27,8 @@ const STATUS_MESSAGES = {
 const statusEl = document.getElementById("canvas").nextElementSibling;
 
 function setStatusText(text) {
-    if (text === null || text === undefined) return;
-    statusEl.textContent = text;
+    if (text === undefined) return;
+    statusEl.textContent = text === null ? "" : text;
 }
 
 var Module = {

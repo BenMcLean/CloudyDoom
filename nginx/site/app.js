@@ -33,10 +33,10 @@ function setStatusText(text) {
 
 var Module = {
     noInitialRun: true,
-    preRun: () => {
-        Module.FS.createPreloadedFile("", "doom1.wad", "doom1.wad", true, true);
-        Module.FS.createPreloadedFile("", "default.cfg", "default.cfg", true, true);
-    },
+    // No preRun here: it fires before config.json has been fetched, so it
+    // can't know the WAD's URL yet (DOOM_WAD_PATH varies per deployment -
+    // see docker-entrypoint.sh). The WAD is preloaded explicitly further
+    // down, once config.json has resolved, right before callMain().
     canvas: (function () {
         var canvas = document.getElementById("canvas");
         canvas.addEventListener(
@@ -81,20 +81,38 @@ var Module = {
             })
             .then((config) => {
                 if (!config.wsUrl) throw new Error("config.json is missing wsUrl");
+                if (!config.wadUrl) throw new Error("config.json is missing wadUrl");
 
-                const args = [
-                    "-iwad", "doom1.wad",
-                    "-window",
-                    "-nogui",
-                    "-nomusic",
-                    "-config", "default.cfg",
-                    "-connect", "1",
-                    "-dup", "1",
-                    "-wss", config.wsUrl,
-                ].concat(Array.isArray(config.extraArgs) ? config.extraArgs : []);
+                setStatusText("Downloading IWAD...");
 
-                setStatusText("Connecting...");
-                callMain(args);
+                // The engine always sees a fixed internal filename ("doom1.wad")
+                // regardless of what the real IWAD is actually called on disk -
+                // createPreloadedFile's 3rd argument is the URL it fetches from,
+                // which can be anything (e.g. "wads/DOOM2.WAD").
+                let pending = 2;
+                const onOneLoaded = () => {
+                    if (--pending > 0) return;
+
+                    const args = [
+                        "-iwad", "doom1.wad",
+                        "-window",
+                        "-nogui",
+                        "-nomusic",
+                        "-config", "default.cfg",
+                        "-connect", "1",
+                        "-dup", "1",
+                        "-wss", config.wsUrl,
+                    ].concat(Array.isArray(config.extraArgs) ? config.extraArgs : []);
+
+                    setStatusText("Connecting...");
+                    callMain(args);
+                };
+                const onLoadError = (path) => {
+                    setStatusText(`Failed to download ${path}`);
+                };
+
+                Module.FS.createPreloadedFile("", "doom1.wad", config.wadUrl, true, true, onOneLoaded, () => onLoadError(config.wadUrl));
+                Module.FS.createPreloadedFile("", "default.cfg", "default.cfg", true, true, onOneLoaded, () => onLoadError("default.cfg"));
             })
             .catch((err) => {
                 console.error(err);

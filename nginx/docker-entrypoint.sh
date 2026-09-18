@@ -5,7 +5,14 @@ set -eu
 : "${DOOM_AUTH_USER:?DOOM_AUTH_USER must be set}"
 : "${DOOM_AUTH_PASS:?DOOM_AUTH_PASS must be set}"
 
-envsubst '${DOOM_WS_URL}' < /etc/doom/config.json.template > /usr/share/nginx/html/config.json
+# DOOM_WAD_PATH is the filename inside the /wads volume mount (e.g. a real
+# DOOM2.WAD dropped in by whoever runs the compose file) - see the "wads"
+# volume + this var in docker-compose.yml. Defaults to the shareware WAD
+# name so the stack still boots for anyone who hasn't supplied one yet.
+DOOM_WAD_PATH="${DOOM_WAD_PATH:-doom1.wad}"
+export DOOM_WAD_URL="wads/${DOOM_WAD_PATH}"
+
+envsubst '${DOOM_WS_URL} ${DOOM_WAD_URL}' < /etc/doom/config.json.template > /usr/share/nginx/html/config.json
 
 htpasswd -cbB /etc/nginx/.htpasswd "$DOOM_AUTH_USER" "$DOOM_AUTH_PASS"
 

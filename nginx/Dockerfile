@@ -27,9 +27,13 @@ COPY nginx/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
 COPY nginx/site/ /usr/share/nginx/html/
+COPY doom-wasm/src/default.cfg /usr/share/nginx/html/
 COPY --from=wasm-builder /src/src/websockets-doom.js /usr/share/nginx/html/
 COPY --from=wasm-builder /src/src/websockets-doom.wasm /usr/share/nginx/html/
 COPY --from=wasm-builder /src/src/websockets-doom.wasm.map /usr/share/nginx/html/
+
+# Mount point for the IWAD volume - see DOOM_WAD_PATH in docker-entrypoint.sh.
+RUN mkdir -p /wads
 
 EXPOSE 8080
 

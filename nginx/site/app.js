@@ -82,6 +82,9 @@ var Module = {
             .then((config) => {
                 if (!config.wsUrl) throw new Error("config.json is missing wsUrl");
                 if (!config.iwadUrl) throw new Error("config.json is missing iwadUrl");
+                // config.playerName is only present when nginx/auth.js's
+                // USE_LOGIN_NAME isn't "false" - otherwise the engine falls
+                // back to its own random pet name generator, below.
 
                 setStatusText("Downloading IWAD...");
 
@@ -101,6 +104,13 @@ var Module = {
                 const onOneLoaded = () => {
                     if (--pending > 0) return;
 
+                    // net_client.c only honors -pet if player_name isn't
+                    // already set via default.cfg - it isn't, so this is
+                    // what ends up on-screen and in netgame chat/kills.
+                    // Omitted entirely when there's no playerName, which
+                    // leaves the engine to pick its own random pet name.
+                    const petArgs = config.playerName ? ["-pet", config.playerName] : [];
+
                     const args = [
                         "-iwad", "doom1.wad",
                         "-window",
@@ -110,7 +120,8 @@ var Module = {
                         "-connect", "1",
                         "-dup", "1",
                         "-wss", config.wsUrl,
-                    ].concat(...optionalFiles.map((f) => f.args))
+                    ].concat(petArgs)
+                     .concat(...optionalFiles.map((f) => f.args))
                      .concat(Array.isArray(config.extraArgs) ? config.extraArgs : []);
 
                     setStatusText("Connecting...");

@@ -59,13 +59,14 @@ and land in the same game as everyone playing through the browser.
 git clone --recurse-submodules <this repo's URL>   # or just git clone, doom-wasm/ is a subtree, not a submodule
 cd doom
 cp .env.example .env
-$EDITOR .env   # set DOOM_WS_URL, DOOM_AUTH_USER, DOOM_AUTH_PASS at minimum
+$EDITOR .env   # set DOOM_WS_URL at minimum, and PASSWORD if you're gating a commercial IWAD
 mkdir -p wads && cp /path/to/your/DOOM2.WAD wads/   # see "Getting an IWAD" below
 docker compose up -d --build
 ```
 
 Then open `http://<host>:8080` (or whatever `WEB_HTTP_PORT` you set), log in
-with the Basic Auth credentials, and play.
+with any username and the shared password, and play - the username you type
+becomes your in-game player name.
 
 `doom-wasm/` is a **git subtree**, not a submodule, so a plain `git clone`
 already includes it - no `--recurse-submodules` actually required, that's
@@ -75,16 +76,28 @@ just there as a habit-guard in case you're used to submodule-based repos.
 
 Everything is configured via environment variables at container start, not
 baked into any image - see `.env.example` for the full list with defaults.
-The two you can't skip:
+The one you can't skip:
 
 - `DOOM_WS_URL` - the websocket URL browsers will connect to. Has to be
   reachable from wherever your players actually are (not just inside the
   docker network). If you're fronting this with a reverse proxy/TLS
   terminator (recommended - see below), point this at that proxy instead of
   directly at `GATEWAY_WS_PORT`.
-- `DOOM_AUTH_USER` / `DOOM_AUTH_PASS` - HTTP Basic Auth credentials gating
-  the web client and the IWAD download. This is what keeps a commercial WAD
-  from being publicly downloadable, so use a real password.
+
+And one you should set unless you have a specific reason not to:
+
+- `PASSWORD` - the shared HTTP Basic Auth password gating the web client and
+  the IWAD download. This is what keeps a commercial WAD from being publicly
+  downloadable, so use a real password. The username is not checked -
+  anyone can pick any username, and it becomes their in-game player name
+  (see `nginx/auth.js`). Leave it blank/unset only if you're deliberately
+  running a public server with nothing to gate (e.g. serving Freedoom
+  instead of a commercial IWAD) - the login prompt still appears so players
+  can pick a name, but any password is accepted.
+- `USE_LOGIN_NAME` - set to `false` to stop using the login username as the
+  in-game player name; everyone gets one of doom-wasm's own random pet
+  names instead. Combined with a blank `PASSWORD`, setting this to `false`
+  too drops the login prompt entirely - players go straight into the game.
 
 ### Getting an IWAD
 
@@ -147,10 +160,9 @@ will fail.
 2. **Stacks → Add stack → Repository.**
 3. Repository URL: this repo's URL. Compose path: `docker-compose.yml`
    (the default).
-4. Under **Environment variables**, add `DOOM_WS_URL`, `DOOM_AUTH_USER`,
-   `DOOM_AUTH_PASS`, and any of the optional overrides from
-   `.env.example` you want to change - this is Portainer's equivalent of
-   the `.env` file.
+4. Under **Environment variables**, add `DOOM_WS_URL`, `PASSWORD`,
+   and any of the optional overrides from `.env.example` you want to
+   change - this is Portainer's equivalent of the `.env` file.
 5. Deploy the stack. Portainer clones the repo and runs
    `docker compose up -d --build` for you.
 

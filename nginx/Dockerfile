@@ -19,10 +19,11 @@ RUN ./scripts/build.sh
 # --- Stage 2: serve the compiled client behind Basic Auth ---
 FROM nginx:1.27-alpine
 
-RUN apk add --no-cache apache2-utils gettext
+RUN apk add --no-cache gettext nginx-mod-http-js
 
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
-COPY nginx/config.json.template /etc/doom/config.json.template
+COPY nginx/auth.js /etc/nginx/njs/auth.js
+COPY nginx/config.base.json.template /etc/doom/config.base.json.template
 COPY nginx/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
@@ -40,11 +41,11 @@ RUN mkdir -p /wads
 # volume owned by whatever uid your host uses - not just the default nginx
 # user (101). These are the paths that uid needs to be able to write to
 # regardless of which one it ends up being: nginx's own runtime files, and
-# the two files the entrypoint generates at container start
-# (.htpasswd, config.json). None of this is sensitive - it's all
+# config.base.json, which the entrypoint generates at container start (see
+# CONFIG_BASE_PATH there). None of this is sensitive - it's all
 # container-internal generated config, not the /wads mount itself, which
 # stays read-only and under your own control on the host.
-RUN chmod 777 /var/cache/nginx /run /etc/nginx /usr/share/nginx/html
+RUN chmod 777 /var/cache/nginx /run /etc/nginx /etc/doom
 
 EXPOSE 8080
 

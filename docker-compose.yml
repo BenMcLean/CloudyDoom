@@ -7,8 +7,17 @@ services:
       - "${WEB_HTTP_PORT:-8080}:8080"
     environment:
       DOOM_WS_URL: ${DOOM_WS_URL:?Set DOOM_WS_URL to the externally-reachable websocket URL, e.g. wss://doom.example.com:8081}
-      DOOM_AUTH_USER: ${DOOM_AUTH_USER:?Set DOOM_AUTH_USER}
-      DOOM_AUTH_PASS: ${DOOM_AUTH_PASS:?Set DOOM_AUTH_PASS}
+      # Shared password only - not DOOM_-prefixed like the vars above,
+      # since it's an nginx-only access gate that never reaches doom-wasm
+      # or chocolate-server. The username is left up to each client and
+      # used as their in-game player name. Optional - leave blank in .env
+      # for a public server with nothing to gate. See nginx/auth.js.
+      PASSWORD: ${PASSWORD:-}
+      # Set to "false" to skip using the login username as the in-game
+      # player name (falls back to doom-wasm's own random pet name
+      # generator instead). Combined with a blank PASSWORD above, this
+      # skips the login prompt entirely - see nginx/auth.js.
+      USE_LOGIN_NAME: ${USE_LOGIN_NAME:-true}
       DOOM_IWAD_PATH: ${DOOM_IWAD_PATH:-doom1.wad}
       DOOM_PWAD_PATH: ${DOOM_PWAD_PATH:-}
       DOOM_DEH_PATH: ${DOOM_DEH_PATH:-}

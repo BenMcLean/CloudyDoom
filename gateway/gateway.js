@@ -51,6 +51,7 @@ wss.on("connection", (ws, req) => {
     const udpSocket = dgram.createSocket("udp4");
 
     udpSocket.on("message", (payload) => {
+        console.log(`doom gateway: udp -> ws, client ${clientId} (uid=${instanceUID}), ${payload.length} bytes, readyState=${ws.readyState}`);
         if (ws.readyState !== ws.OPEN) return;
         const frame = Buffer.allocUnsafe(HEADER_IN_LEN + payload.length);
         frame.writeUInt32LE(SERVER_ID, 0);
@@ -74,7 +75,10 @@ wss.on("connection", (ws, req) => {
         }
 
         const payload = data.subarray(HEADER_OUT_LEN);
-        udpSocket.send(payload, DOOM_SERVER_PORT, DOOM_SERVER_HOST);
+        console.log(`doom gateway: ws -> udp, client ${clientId} (uid=${instanceUID}), ${payload.length} bytes`);
+        udpSocket.send(payload, DOOM_SERVER_PORT, DOOM_SERVER_HOST, (err) => {
+            if (err) console.error(`doom gateway: udp send error for client ${clientId} (uid=${instanceUID}):`, err.message);
+        });
     });
 
     ws.on("close", () => {

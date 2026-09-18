@@ -1,4 +1,4 @@
-# doom.example.com
+# CloudyDoom
 
 Multiplayer Doom, playable straight in the browser, pointed at your own
 dedicated server. For the people you invite to play: no client install, no

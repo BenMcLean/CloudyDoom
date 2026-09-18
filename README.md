@@ -1,10 +1,20 @@
 # doom.example.com
 
 Multiplayer Doom, playable straight in the browser, pointed at your own
-dedicated server - no client install, no port-forwarding a game exe, just a
-URL and a password. Everything here is open source and packaged as a
-docker-compose stack so anyone running a homelab server can stand up their
-own copy.
+dedicated server. For the people you invite to play: no client install, no
+router config, just a URL and a password. Everything here is open source
+and packaged as a docker-compose stack so anyone running a homelab server
+can stand up their own copy.
+
+That "no setup" experience is only true for players - **you, running the
+server, still need to forward ports** to the internet (`DOOM_SERVER_PORT`
+at minimum, plus `WEB_HTTP_PORT`/`GATEWAY_WS_PORT` or whatever a reverse
+proxy in front of them uses) exactly like hosting any other self-hosted
+service. The WebSocket gateway exists only because browsers can't open raw
+UDP sockets - it changes what protocol has to reach the *browser*, it
+doesn't remove anything you need to expose as the host. See
+[Putting this behind a reverse proxy / TLS](#putting-this-behind-a-reverse-proxy--tls)
+for what's actually involved on your end.
 
 Native Chocolate Doom clients can also connect directly to the same server
 and play alongside the browser players - see [Connecting](#connecting)

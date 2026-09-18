@@ -1,0 +1,13 @@
+{
+  "name": "doom-ws-udp-gateway",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Translates doom-wasm's WebSocket framing to plain UDP for a real Chocolate Doom dedicated server, and back.",
+  "main": "gateway.js",
+  "scripts": {
+    "start": "node gateway.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

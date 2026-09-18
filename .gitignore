@@ -1,0 +1,7 @@
+# Local secrets/config - copy .env.example instead.
+.env
+
+# IWADs are copyrighted (or just large); they get mounted in at runtime,
+# never committed. See .env.example / DOOM_WAD_PATH.
+/wads/*
+!/wads/.gitkeep

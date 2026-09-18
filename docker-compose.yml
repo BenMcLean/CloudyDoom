@@ -1,0 +1,39 @@
+services:
+  nginx:
+    build:
+      context: .
+      dockerfile: nginx/Dockerfile
+    ports:
+      - "${WEB_HTTP_PORT:-8080}:8080"
+    environment:
+      DOOM_WS_URL: ${DOOM_WS_URL:?Set DOOM_WS_URL to the externally-reachable websocket URL, e.g. wss://doom.example.com:8081}
+      DOOM_AUTH_USER: ${DOOM_AUTH_USER:?Set DOOM_AUTH_USER}
+      DOOM_AUTH_PASS: ${DOOM_AUTH_PASS:?Set DOOM_AUTH_PASS}
+      DOOM_WAD_PATH: ${DOOM_WAD_PATH:-doom1.wad}
+    volumes:
+      - ${WAD_DIR:-./wads}:/wads:ro
+    depends_on:
+      - gateway
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ./gateway
+    ports:
+      - "${GATEWAY_WS_PORT:-8081}:8081"
+    environment:
+      WS_PORT: 8081
+      DOOM_SERVER_HOST: doom-server
+      DOOM_SERVER_PORT: ${DOOM_SERVER_PORT:-2342}
+    depends_on:
+      - doom-server
+    restart: unless-stopped
+
+  doom-server:
+    build:
+      context: ./doom-server
+    ports:
+      - "${DOOM_SERVER_PORT:-2342}:${DOOM_SERVER_PORT:-2342}/udp"
+    environment:
+      DOOM_SERVER_PORT: ${DOOM_SERVER_PORT:-2342}
+    restart: unless-stopped

@@ -9,4 +9,10 @@ DOOM_SERVER_PORT="${DOOM_SERVER_PORT:-2342}"
 # chocolate-server's stdout is fully-buffered when it isn't a TTY (which it
 # never is under Docker), so its printf logging would otherwise sit in a
 # buffer and never reach `docker logs` at all. stdbuf forces line buffering.
-exec stdbuf -oL -eL /usr/games/chocolate-server -port "$DOOM_SERVER_PORT"
+#
+# -netlog traces every accept/reject/disconnect/timeout decision with a
+# timestamp (see NET_Log in net_common.c) - not available in chocolate-doom
+# 3.0.0, which is the whole reason this image no longer builds that version.
+# Logged to stderr's stream via `docker logs`, not a file on a volume, since
+# nothing here needs it to survive a container restart.
+exec stdbuf -oL -eL /usr/games/chocolate-server -port "$DOOM_SERVER_PORT" -netlog /dev/stderr

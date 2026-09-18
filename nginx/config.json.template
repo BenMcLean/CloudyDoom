@@ -1,4 +1,6 @@
 {
   "wsUrl": "${DOOM_WS_URL}",
-  "wadUrl": "${DOOM_WAD_URL}"
+  "wadUrl": "${DOOM_WAD_URL}",
+  "pwadUrl": "${DOOM_PWAD_URL}",
+  "dehUrl": "${DOOM_DEH_URL}"
 }

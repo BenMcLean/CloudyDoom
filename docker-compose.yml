@@ -10,6 +10,8 @@ services:
       DOOM_AUTH_USER: ${DOOM_AUTH_USER:?Set DOOM_AUTH_USER}
       DOOM_AUTH_PASS: ${DOOM_AUTH_PASS:?Set DOOM_AUTH_PASS}
       DOOM_WAD_PATH: ${DOOM_WAD_PATH:-doom1.wad}
+      DOOM_PWAD_PATH: ${DOOM_PWAD_PATH:-}
+      DOOM_DEH_PATH: ${DOOM_DEH_PATH:-}
     # Runs as nginx's own built-in user (101:101) by default - matches what
     # nginx.conf's lack of a "user" directive already implies. Override
     # with PUID/PGID if your WAD_DIR is owned by a specific uid/gid on the

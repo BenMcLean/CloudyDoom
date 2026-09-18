@@ -115,6 +115,25 @@ to read a directory owned by, say, a dedicated media/homelab user on your
 system. If you hit a permission error here, set `PUID`/`PGID` in `.env` to
 match that directory's actual owner - see `.env.example`.
 
+### Using a PWAD or a DeHackEd (.deh) patch
+
+A PWAD (map pack, mod add-on) and a DeHackEd patch (gameplay mod) both work
+the same way as the IWAD above: drop the file into `wads/` (or wherever
+`WAD_DIR` points) alongside your IWAD, then point one of these at its
+filename:
+
+- `DOOM_PWAD_PATH` - loaded on top of the IWAD with `-file`, e.g. a map
+  pack's `MYMAPS.WAD`.
+- `DOOM_DEH_PATH` - applied with `-deh`, e.g. a gameplay mod's `PATCH.DEH`.
+
+Both are unset by default, meaning neither is loaded and the game runs as
+the plain IWAD. Like the IWAD, `doom-server` never touches either file
+(chocolate-server refuses all game/IWAD options - see
+[Why the dedicated server needs no WAD at all](#why-the-dedicated-server-needs-no-wad-at-all));
+they're downloaded and applied client-side by the browser player, the same
+way a native `chocolate-doom -file MYMAPS.WAD -deh PATCH.DEH -connect <host>`
+client would need the same files to stay in sync with everyone else.
+
 ## Deploying with Portainer
 
 Since the build contexts (`./gateway`, `./doom-server`, `nginx/Dockerfile`)

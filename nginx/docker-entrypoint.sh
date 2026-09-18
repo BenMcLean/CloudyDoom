@@ -12,7 +12,15 @@ set -eu
 DOOM_WAD_PATH="${DOOM_WAD_PATH:-doom1.wad}"
 export DOOM_WAD_URL="wads/${DOOM_WAD_PATH}"
 
-envsubst '${DOOM_WS_URL} ${DOOM_WAD_URL}' < /etc/doom/config.json.template > /usr/share/nginx/html/config.json
+# DOOM_PWAD_PATH and DOOM_DEH_PATH are filenames inside the same /wads volume
+# mount as DOOM_WAD_PATH above - a PWAD (map/mod add-on, loaded with -file)
+# and a DeHackEd (.deh) patch respectively. Both unset by default, meaning
+# neither is loaded - config.json.template ends up with empty pwadUrl/dehUrl,
+# which app.js treats as "don't load one".
+export DOOM_PWAD_URL="${DOOM_PWAD_PATH:+wads/${DOOM_PWAD_PATH}}"
+export DOOM_DEH_URL="${DOOM_DEH_PATH:+wads/${DOOM_DEH_PATH}}"
+
+envsubst '${DOOM_WS_URL} ${DOOM_WAD_URL} ${DOOM_PWAD_URL} ${DOOM_DEH_URL}' < /etc/doom/config.json.template > /usr/share/nginx/html/config.json
 
 htpasswd -cbB /etc/nginx/.htpasswd "$DOOM_AUTH_USER" "$DOOM_AUTH_PASS"
 

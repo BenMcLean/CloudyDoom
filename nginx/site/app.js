@@ -85,11 +85,19 @@ var Module = {
 
                 setStatusText("Downloading IWAD...");
 
-                // The engine always sees a fixed internal filename ("doom1.wad")
-                // regardless of what the real IWAD is actually called on disk -
-                // createPreloadedFile's 3rd argument is the URL it fetches from,
-                // which can be anything (e.g. "wads/DOOM2.WAD").
-                let pending = 2;
+                // The engine always sees fixed internal filenames ("doom1.wad",
+                // "custom.wad", "custom.deh") regardless of what the real files
+                // are actually called on disk - createPreloadedFile's 3rd
+                // argument is the URL it fetches from, which can be anything
+                // (e.g. "wads/DOOM2.WAD"). The PWAD and DeHackEd patch are both
+                // optional and only fetched/loaded if config.pwadUrl/dehUrl is
+                // set - see DOOM_PWAD_PATH/DOOM_DEH_PATH in docker-entrypoint.sh.
+                const optionalFiles = [
+                    config.pwadUrl && { name: "custom.wad", url: config.pwadUrl, args: ["-file", "custom.wad"] },
+                    config.dehUrl && { name: "custom.deh", url: config.dehUrl, args: ["-deh", "custom.deh"] },
+                ].filter(Boolean);
+
+                let pending = 2 + optionalFiles.length;
                 const onOneLoaded = () => {
                     if (--pending > 0) return;
 
@@ -102,7 +110,8 @@ var Module = {
                         "-connect", "1",
                         "-dup", "1",
                         "-wss", config.wsUrl,
-                    ].concat(Array.isArray(config.extraArgs) ? config.extraArgs : []);
+                    ].concat(...optionalFiles.map((f) => f.args))
+                     .concat(Array.isArray(config.extraArgs) ? config.extraArgs : []);
 
                     setStatusText("Connecting...");
                     callMain(args);
@@ -113,6 +122,9 @@ var Module = {
 
                 Module.FS.createPreloadedFile("", "doom1.wad", config.wadUrl, true, true, onOneLoaded, () => onLoadError(config.wadUrl));
                 Module.FS.createPreloadedFile("", "default.cfg", "default.cfg", true, true, onOneLoaded, () => onLoadError("default.cfg"));
+                for (const f of optionalFiles) {
+                    Module.FS.createPreloadedFile("", f.name, f.url, true, true, onOneLoaded, () => onLoadError(f.url));
+                }
             })
             .catch((err) => {
                 console.error(err);

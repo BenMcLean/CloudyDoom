@@ -7,14 +7,15 @@ and packaged as a docker-compose stack so anyone running a homelab server
 can stand up their own copy.
 
 That "no setup" experience is only true for players - **you, running the
-server, still need to forward ports** to the internet (`DOOM_SERVER_PORT`
-at minimum, plus `WEB_HTTP_PORT`/`GATEWAY_WS_PORT` or whatever a reverse
-proxy in front of them uses) exactly like hosting any other self-hosted
-service. The WebSocket gateway exists only because browsers can't open raw
-UDP sockets - it changes what protocol has to reach the *browser*, it
-doesn't remove anything you need to expose as the host. See
+server, still need to expose it to the internet**, same as hosting any
+other self-hosted service. Exactly what that involves depends on how you
+front it: if `nginx` and `gateway` ride an existing reverse proxy setup
+(Cloudflare for the website, a local proxy like nginx-proxy-manager for
+the gateway - see below), the only genuinely *new* port-forward is likely
+`DOOM_SERVER_PORT` (raw UDP), since that one can't go through any reverse
+proxy at all - not Cloudflare's, not a local one, none of them. See
 [Putting this behind a reverse proxy / TLS](#putting-this-behind-a-reverse-proxy--tls)
-for what's actually involved on your end.
+for the concrete setup and exactly what that means for your router.
 
 Native Chocolate Doom clients can also connect directly to the same server
 and play alongside the browser players - see [Connecting](#connecting)

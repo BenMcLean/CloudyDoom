@@ -47,7 +47,7 @@ Three services, three published ports:
 |---|---|---|
 | `nginx` | Serves the WASM Doom client (built from [`cloudflare/doom-wasm`](https://github.com/cloudflare/doom-wasm), vendored in `doom-wasm/`) behind HTTP Basic Auth. Also serves the IWAD file, so the auth gate covers commercial WADs too. | `WEB_HTTP_PORT` (default `8080`, tcp) |
 | `gateway` | The only genuinely new piece here. Browsers can't open raw UDP sockets, so this translates doom-wasm's WebSocket framing into plain UDP and back, giving each browser client its own UDP socket so the dedicated server can tell them apart exactly like real UDP clients. | `GATEWAY_WS_PORT` (default `8081`, tcp) |
-| `doom-server` | A real, unmodified Chocolate Doom dedicated server (`chocolate-server`, from Ubuntu 20.04's package, pinned to exactly match the WASM client's fork version - see [Why 3.0.0 specifically](#why-300-specifically)). It has no idea any of this WebSocket business exists; it just sees UDP clients. | `DOOM_SERVER_PORT` (default `2342`, **udp**) |
+| `doom-server` | A real, unmodified Chocolate Doom dedicated server (`chocolate-server`, built from source at a pinned upstream tag newer than the WASM client's fork version, since the wire protocol has stayed compatible - see [Why a newer version works](#why-a-newer-version-works)). It has no idea any of this WebSocket business exists; it just sees UDP clients. | `DOOM_SERVER_PORT` (default `2342`, **udp**) |
 
 Because `doom-server`'s UDP port is published directly (not only reachable
 through the gateway), native Chocolate Doom clients connect straight to it
@@ -332,20 +332,17 @@ than a product-tier one. Forward it straight through your router to
 - **`NET_CL_ParseSYN: ... mismatch may cause the game to desync` in the
   browser console**: harmless. It's comparing the WASM client's build
   identifier (`Websockets Doom 0.0.1`) against the dedicated server's
-  (`Chocolate Doom 3.0.0`) - different strings, but the actual game
-  simulation code is identical, and the dedicated server doesn't run any
-  game simulation at all (see below), so there's nothing for it to desync
-  from. Confirmed by an actual full playthrough.
+  (e.g. `Chocolate Doom 3.1.1`) - different strings, and the actual game
+  simulation code is unaffected by the version gap for the reason below, so
+  there's nothing for it to desync from. Confirmed by an actual full
+  playthrough.
 
-## Why 3.0.0 specifically
+## Why a newer version works
 
-`doom-wasm`'s netcode (packet structs, `NET_MAGIC_NUMBER`) is a straight
-fork of Chocolate Doom **3.0.0** with only the transport module swapped
-(UDP → WebSockets); nothing else in the game/network logic was changed.
-`doom-server/Dockerfile` pins `ubuntu:20.04` specifically because its
-`universe` repo ships `chocolate-doom` at exactly `3.0.0-5`, and asserts
-that version at build time so a base-image bump can't silently drift the
-netcode version out of sync with the WASM client and break the handshake.
+`doom-wasm`'s netcode is a fork of Chocolate Doom 3.0.0, while
+`doom-server` runs a newer version built from source - see the comment at
+the top of `doom-server/Dockerfile` for why that version gap is safe and
+what to re-verify before widening it further.
 
 ## Why the dedicated server needs no WAD at all
 

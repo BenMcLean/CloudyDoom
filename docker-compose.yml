@@ -1,3 +1,9 @@
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
 services:
   nginx:
     build:
@@ -36,6 +42,7 @@ services:
     depends_on:
       - gateway
     restart: unless-stopped
+    logging: *default-logging
 
   gateway:
     build:
@@ -49,6 +56,7 @@ services:
     depends_on:
       - doom-server
     restart: unless-stopped
+    logging: *default-logging
 
   doom-server:
     build:
@@ -58,3 +66,4 @@ services:
     environment:
       DOOM_SERVER_PORT: ${DOOM_SERVER_PORT:-2342}
     restart: unless-stopped
+    logging: *default-logging

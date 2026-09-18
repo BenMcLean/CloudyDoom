@@ -7,6 +7,10 @@ const { WebSocketServer } = require("ws");
 const WS_PORT = parseInt(process.env.WS_PORT || "8081", 10);
 const DOOM_SERVER_HOST = process.env.DOOM_SERVER_HOST;
 const DOOM_SERVER_PORT = parseInt(process.env.DOOM_SERVER_PORT || "2342", 10);
+// Per-packet traffic logging is off by default - doom's netcode sends
+// packets every game tic (35/sec/client), which floods logs with no
+// rotation configured. Set DEBUG_PACKETS=true to re-enable for debugging.
+const DEBUG_PACKETS = process.env.DEBUG_PACKETS === "true";
 
 if (!DOOM_SERVER_HOST) {
     console.error("DOOM_SERVER_HOST must be set, e.g. doom-server");
@@ -51,7 +55,7 @@ wss.on("connection", (ws, req) => {
     const udpSocket = dgram.createSocket("udp4");
 
     udpSocket.on("message", (payload) => {
-        console.log(`doom gateway: udp -> ws, client ${clientId} (uid=${instanceUID}), ${payload.length} bytes, readyState=${ws.readyState}`);
+        if (DEBUG_PACKETS) console.log(`doom gateway: udp -> ws, client ${clientId} (uid=${instanceUID}), ${payload.length} bytes, readyState=${ws.readyState}`);
         if (ws.readyState !== ws.OPEN) return;
         const frame = Buffer.allocUnsafe(HEADER_IN_LEN + payload.length);
         frame.writeUInt32LE(SERVER_ID, 0);
@@ -75,7 +79,7 @@ wss.on("connection", (ws, req) => {
         }
 
         const payload = data.subarray(HEADER_OUT_LEN);
-        console.log(`doom gateway: ws -> udp, client ${clientId} (uid=${instanceUID}), ${payload.length} bytes`);
+        if (DEBUG_PACKETS) console.log(`doom gateway: ws -> udp, client ${clientId} (uid=${instanceUID}), ${payload.length} bytes`);
         udpSocket.send(payload, DOOM_SERVER_PORT, DOOM_SERVER_HOST, (err) => {
             if (err) console.error(`doom gateway: udp send error for client ${clientId} (uid=${instanceUID}):`, err.message);
         });

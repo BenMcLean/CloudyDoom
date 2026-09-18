@@ -146,32 +146,75 @@ clone instead, e.g. `WAD_DIR=/srv/doom-wads`, and drop your IWAD there once.
 ## Putting this behind a reverse proxy / TLS
 
 **This compose file does not terminate TLS.** HTTP Basic Auth sends
-credentials in the clear, so exposing `WEB_HTTP_PORT`/`GATEWAY_WS_PORT`
-directly to the internet means leaking your password to anyone on the
-path. For anything beyond local testing, put `nginx` and `gateway` behind a
-TLS-terminating reverse proxy or tunnel.
+credentials in the clear, and browsers flatly refuse to open a plain
+`ws://` connection from a page loaded over `https://` ("mixed content"
+blocking - not a warning, a hard failure). So for anything beyond local
+testing, both `nginx` and `gateway` need to sit behind something that
+terminates TLS.
 
-If you're already using Cloudflare for your domain, its standard proxy
-(the orange-cloud DNS setting, no paid add-on needed) handles both of these
-traffic types fine:
+The setup this project was actually designed around uses **two separate
+domains**, because the web client and the game traffic have very different
+latency requirements:
 
-- **The web client + WAD (`nginx`)** is plain HTTP(S) - proxies with zero
-  special config.
-- **The gateway's WebSocket traffic** also proxies through Cloudflare's
-  standard HTTP stack without any special config - WebSocket has been
-  supported there by default for years, since it's just an HTTP Upgrade
-  over the same connection as regular HTTPS.
+- **`doom.example.com`** (or whatever hostname you pick) - Cloudflare's
+  proxy (orange-cloud DNS) in front, serving the web client and IWAD. This
+  is ordinary HTTP(S) traffic with no latency sensitivity, so routing it
+  through Cloudflare's remote edge is fine.
+- **A second hostname** (e.g. `notproxied.example.com`) - a plain,
+  unproxied ("grey-cloud"/DNS-only) A record pointing straight at your home
+  IP, for everything latency-sensitive: the gateway's WebSocket traffic and
+  `doom-server`'s raw UDP. Routing real-time game traffic through a remote
+  CDN edge adds a real round-trip that a direct connection doesn't have -
+  worth avoiding even though Cloudflare's proxy is technically capable of
+  carrying WebSocket traffic.
 
-Point `DOOM_WS_URL` at the Cloudflare-proxied `wss://` hostname for the
-gateway rather than its raw port, and both services get free TLS
-termination with no extra reverse-proxy software of your own to run.
+That second hostname still needs TLS for the `wss://` requirement above,
+without introducing the latency a remote proxy would. If you're already
+running **nginx-proxy-manager** (or Caddy, Traefik, etc.) locally on that
+same server for your other self-hosted apps, that's the right tool for
+this too - it's a local hop (microseconds), nothing like Cloudflare's
+geographic round-trip, and it gets you automatic Let's Encrypt certs for
+free.
 
-**`DOOM_SERVER_PORT` (raw UDP) is the one exception - it cannot go through
-Cloudflare's standard proxy at all.** Proxying arbitrary UDP requires
-Cloudflare Spectrum, an Enterprise-only paid product, well outside the
-scope of a homelab project. Leave that DNS record unproxied ("grey-clouded")
-or just have native clients connect by your server's raw IP, with
-`DOOM_SERVER_PORT` forwarded straight through your router to `doom-server`.
+### Configuring nginx-proxy-manager
+
+Add two Proxy Hosts (NPM's "Hosts → Proxy Hosts → Add Proxy Host"):
+
+1. **The website**, if it isn't already behind Cloudflare directly:
+   - Domain: `doom.example.com`
+   - Forward to: `<your-server's-LAN-IP>:8080` (or the `nginx` container's
+     name/port if NPM shares a Docker network with this stack - see note
+     below)
+   - Request a new SSL certificate, force SSL - standard stuff, same as
+     any other app you've already proxied through NPM.
+
+2. **The WebSocket gateway** - this is the one with a step that's easy to
+   miss:
+   - Domain: `notproxied.example.com`
+   - Forward to: `<your-server's-LAN-IP>:8081`
+   - On the **Details** tab, enable **"Websockets Support"**. Without this,
+     NPM won't forward the `Upgrade`/`Connection` headers the WebSocket
+     handshake needs, and every browser client will fail to connect with
+     no obvious error pointing at NPM as the cause.
+   - Request a new SSL certificate here too, force SSL.
+
+Then set `DOOM_WS_URL=wss://notproxied.example.com` in `.env` (or
+Portainer's environment variables) - no custom port needed, since NPM
+terminates `443` and forwards internally to `gateway`'s `8081`.
+
+**Docker networking note:** if NPM runs as its own separate compose stack
+(as it typically does), it can reach `nginx`/`gateway` simply via your
+server's own IP and the ports this project already publishes to the host
+(`WEB_HTTP_PORT`/`GATEWAY_WS_PORT`) - no changes needed here. If you'd
+rather avoid that host-network hairpin and proxy by container name instead,
+join `nginx`/`gateway` to NPM's Docker network in your own compose
+override and point NPM at `nginx:8080`/`gateway:8081` directly.
+
+**`DOOM_SERVER_PORT` (raw UDP) can't go through NPM either** - nginx-based
+reverse proxies are HTTP(S)/WebSocket-only, the same fundamental
+limitation as Cloudflare's standard proxy, just for a config reason rather
+than a product-tier one. Forward it straight through your router to
+`doom-server`, same as you would for any other UDP game server.
 
 ## Troubleshooting
 

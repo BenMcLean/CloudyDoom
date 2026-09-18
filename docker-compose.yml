@@ -21,6 +21,10 @@ services:
       DOOM_IWAD_PATH: ${DOOM_IWAD_PATH:-doom1.wad}
       DOOM_PWAD_PATH: ${DOOM_PWAD_PATH:-}
       DOOM_DEH_PATH: ${DOOM_DEH_PATH:-}
+      DOOM_EXTRA_ARGS: ${DOOM_EXTRA_ARGS:-}
+      # Only used here to build config.json's human-facing nativeClientCmd -
+      # nginx/gateway never talk raw UDP to doom-server themselves.
+      DOOM_SERVER_PORT: ${DOOM_SERVER_PORT:-2342}
     # Runs as nginx's own built-in user (101:101) by default - matches what
     # nginx.conf's lack of a "user" directive already implies. Override
     # with PUID/PGID if your WAD_DIR is owned by a specific uid/gid on the

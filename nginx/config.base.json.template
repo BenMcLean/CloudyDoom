@@ -2,5 +2,7 @@
   "wsUrl": "${DOOM_WS_URL}",
   "iwadUrl": "${DOOM_IWAD_URL}",
   "pwadUrl": "${DOOM_PWAD_URL}",
-  "dehUrl": "${DOOM_DEH_URL}"
+  "dehUrl": "${DOOM_DEH_URL}",
+  "extraArgs": ${DOOM_EXTRA_ARGS_JSON},
+  "nativeClientCmd": "${DOOM_NATIVE_CMD_JSON}"
 }

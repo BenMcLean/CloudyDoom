@@ -99,6 +99,26 @@ And one you should set unless you have a specific reason not to:
   names instead. Combined with a blank `PASSWORD`, setting this to `false`
   too drops the login prompt entirely - players go straight into the game.
 
+`.env.example` opens with a "one with everything" block listing every
+supported var in one place - copy that instead of hunting through the rest
+of the file for exact names, then delete whatever you don't need:
+
+```sh
+DOOM_WS_URL=wss://doom.example.com
+PASSWORD=changeme
+USE_LOGIN_NAME=true
+WEB_HTTP_PORT=8080
+GATEWAY_WS_PORT=8081
+DOOM_SERVER_PORT=2342
+WAD_DIR=./wads
+DOOM_IWAD_PATH=DOOM2.WAD
+DOOM_PWAD_PATH=MYMAPS.WAD
+DOOM_DEH_PATH=PATCH.DEH
+DOOM_EXTRA_ARGS=-skill 4 -deathmatch -fast -warp 5 -timer 10
+PUID=1000
+PGID=1000
+```
+
 ### Getting an IWAD
 
 You need an IWAD (`DOOM.WAD`, `DOOM2.WAD`, the shareware `doom1.wad`, or a
@@ -147,6 +167,40 @@ they're downloaded and applied client-side by the browser player, the same
 way a native `chocolate-doom -file MYMAPS.WAD -deh PATCH.DEH -connect <host>`
 client would need the same files to stay in sync with everyone else.
 
+### Extra game settings (skill, starting map, deathmatch, ...)
+
+`DOOM_EXTRA_ARGS` is a space-separated string of any other doom-wasm command
+line flags, applied equally to every player - e.g. difficulty, which
+episode/map to start on, or deathmatch mode. It's unset by default, so
+doom-wasm's own defaults apply (skill 3, episode 1 map 1, cooperative).
+
+This has to be a single shared var rather than a per-player setting: Doom's
+netcode requires every connecting client's game settings to match exactly,
+or the game desyncs them. Unlike `DOOM_IWAD_PATH`/`DOOM_PWAD_PATH`/
+`DOOM_DEH_PATH` above, these flags need no file resolution, so one generic
+var covers all of them instead of adding a dedicated env var per flag - see
+`nginx/site/app.js`'s `config.extraArgs`.
+
+Some useful flags (full list: `chocolate-doom --help`, or the
+[chocolate-doom man page](https://www.chocolate-doom.org/wiki/index.php/Man_pages)):
+
+- `-skill <1-5>` - difficulty, 1 (I'm too young to die) to 5 (Nightmare!).
+- `-warp <episode> <map>` (Doom 1/Ultimate Doom/Heretic) or `-warp <map>`
+  (Doom II/Final Doom/Hexen) - which level to start on.
+- `-deathmatch` / `-altdeath` - deathmatch instead of cooperative.
+- `-nomonsters` - no monsters spawn.
+- `-fast` - monsters move/attack at Nightmare speed regardless of `-skill`.
+- `-respawn` - monsters respawn after being killed.
+- `-turbo <10-255>` - player movement speed as a percentage of normal.
+- `-timer <minutes>` - deathmatch time limit.
+
+Example, combining several of the above for a fast-paced UV deathmatch
+starting on Doom II's MAP05:
+
+```
+DOOM_EXTRA_ARGS=-skill 4 -deathmatch -fast -warp 5 -timer 10
+```
+
 ## Deploying with Portainer
 
 Since the build contexts (`./gateway`, `./doom-server`, `nginx/Dockerfile`)
@@ -182,6 +236,15 @@ clone instead, e.g. `WAD_DIR=/srv/doom-wads`, and drop your IWAD there once.
   it's talking to the exact same dedicated server - verified with a packet
   capture showing a raw UDP client and a gateway-relayed browser client
   hitting `doom-server` from genuinely distinct sources simultaneously.
+  If you've set `DOOM_PWAD_PATH`/`DOOM_DEH_PATH`/`DOOM_EXTRA_ARGS`, the
+  native client needs the matching `-file`/`-deh`/flags too, or it'll fail
+  Doom's netgame consistency check against the browser players - rather
+  than reconstructing that by hand, fetch `config.json` from the running
+  server (`curl -u <user>:<pass> https://<host>/config.json`, or just view
+  it in a browser tab, once logged in) and copy its `nativeClientCmd`
+  field: a ready-to-paste command line with everything already filled in.
+  It's there purely for humans to read - the browser client itself never
+  looks at it.
 
 ## Putting this behind a reverse proxy / TLS
 

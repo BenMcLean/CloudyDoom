@@ -34,7 +34,7 @@ function setStatusText(text) {
 var Module = {
     noInitialRun: true,
     // No preRun here: it fires before config.json has been fetched, so it
-    // can't know the WAD's URL yet (DOOM_WAD_PATH varies per deployment -
+    // can't know the WAD's URL yet (DOOM_IWAD_PATH varies per deployment -
     // see docker-entrypoint.sh). The WAD is preloaded explicitly further
     // down, once config.json has resolved, right before callMain().
     canvas: (function () {
@@ -81,7 +81,7 @@ var Module = {
             })
             .then((config) => {
                 if (!config.wsUrl) throw new Error("config.json is missing wsUrl");
-                if (!config.wadUrl) throw new Error("config.json is missing wadUrl");
+                if (!config.iwadUrl) throw new Error("config.json is missing iwadUrl");
 
                 setStatusText("Downloading IWAD...");
 
@@ -120,7 +120,7 @@ var Module = {
                     setStatusText(`Failed to download ${path}`);
                 };
 
-                Module.FS.createPreloadedFile("", "doom1.wad", config.wadUrl, true, true, onOneLoaded, () => onLoadError(config.wadUrl));
+                Module.FS.createPreloadedFile("", "doom1.wad", config.iwadUrl, true, true, onOneLoaded, () => onLoadError(config.iwadUrl));
                 Module.FS.createPreloadedFile("", "default.cfg", "default.cfg", true, true, onOneLoaded, () => onLoadError("default.cfg"));
                 for (const f of optionalFiles) {
                     Module.FS.createPreloadedFile("", f.name, f.url, true, true, onOneLoaded, () => onLoadError(f.url));

@@ -9,7 +9,7 @@ services:
       DOOM_WS_URL: ${DOOM_WS_URL:?Set DOOM_WS_URL to the externally-reachable websocket URL, e.g. wss://doom.example.com:8081}
       DOOM_AUTH_USER: ${DOOM_AUTH_USER:?Set DOOM_AUTH_USER}
       DOOM_AUTH_PASS: ${DOOM_AUTH_PASS:?Set DOOM_AUTH_PASS}
-      DOOM_WAD_PATH: ${DOOM_WAD_PATH:-doom1.wad}
+      DOOM_IWAD_PATH: ${DOOM_IWAD_PATH:-doom1.wad}
       DOOM_PWAD_PATH: ${DOOM_PWAD_PATH:-}
       DOOM_DEH_PATH: ${DOOM_DEH_PATH:-}
     # Runs as nginx's own built-in user (101:101) by default - matches what

@@ -104,7 +104,7 @@ only `nginx` serves it to the browser client.
   freely redistributable, if you specifically want the real Doom rather
   than Freedoom's replacement content.
 
-Set `DOOM_WAD_PATH` to the filename you dropped in (defaults to
+Set `DOOM_IWAD_PATH` to the filename you dropped in (defaults to
 `doom1.wad`).
 
 `WAD_DIR` is mounted **read-only** into `nginx` - it can serve from there,

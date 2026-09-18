@@ -32,7 +32,7 @@ COPY --from=wasm-builder /src/src/websockets-doom.js /usr/share/nginx/html/
 COPY --from=wasm-builder /src/src/websockets-doom.wasm /usr/share/nginx/html/
 COPY --from=wasm-builder /src/src/websockets-doom.wasm.map /usr/share/nginx/html/
 
-# Mount point for the IWAD volume - see DOOM_WAD_PATH in docker-entrypoint.sh.
+# Mount point for the IWAD volume - see DOOM_IWAD_PATH in docker-entrypoint.sh.
 RUN mkdir -p /wads
 
 # The compose file can run this container as an arbitrary PUID/PGID (see

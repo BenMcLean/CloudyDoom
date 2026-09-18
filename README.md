@@ -148,10 +148,30 @@ clone instead, e.g. `WAD_DIR=/srv/doom-wads`, and drop your IWAD there once.
 **This compose file does not terminate TLS.** HTTP Basic Auth sends
 credentials in the clear, so exposing `WEB_HTTP_PORT`/`GATEWAY_WS_PORT`
 directly to the internet means leaking your password to anyone on the
-path. For anything beyond local testing, put this behind a TLS-terminating
-reverse proxy or tunnel (Caddy, your own nginx, a Cloudflare Tunnel, etc.)
-and point `DOOM_WS_URL` at that proxy's `wss://` address instead of the raw
-gateway port.
+path. For anything beyond local testing, put `nginx` and `gateway` behind a
+TLS-terminating reverse proxy or tunnel.
+
+If you're already using Cloudflare for your domain, its standard proxy
+(the orange-cloud DNS setting, no paid add-on needed) handles both of these
+traffic types fine:
+
+- **The web client + WAD (`nginx`)** is plain HTTP(S) - proxies with zero
+  special config.
+- **The gateway's WebSocket traffic** also proxies through Cloudflare's
+  standard HTTP stack without any special config - WebSocket has been
+  supported there by default for years, since it's just an HTTP Upgrade
+  over the same connection as regular HTTPS.
+
+Point `DOOM_WS_URL` at the Cloudflare-proxied `wss://` hostname for the
+gateway rather than its raw port, and both services get free TLS
+termination with no extra reverse-proxy software of your own to run.
+
+**`DOOM_SERVER_PORT` (raw UDP) is the one exception - it cannot go through
+Cloudflare's standard proxy at all.** Proxying arbitrary UDP requires
+Cloudflare Spectrum, an Enterprise-only paid product, well outside the
+scope of a homelab project. Leave that DNS record unproxied ("grey-clouded")
+or just have native clients connect by your server's raw IP, with
+`DOOM_SERVER_PORT` forwarded straight through your router to `doom-server`.
 
 ## Troubleshooting
 

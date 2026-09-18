@@ -88,13 +88,21 @@ var Module = {
 
                 setStatusText("Downloading IWAD...");
 
-                // The engine always sees fixed internal filenames ("doom1.wad",
-                // "custom.wad", "custom.deh") regardless of what the real files
-                // are actually called on disk - createPreloadedFile's 3rd
-                // argument is the URL it fetches from, which can be anything
-                // (e.g. "wads/DOOM2.WAD"). The PWAD and DeHackEd patch are both
+                // The IWAD's virtual filename has to be its real basename (e.g.
+                // "DOOM2.WAD"), not an arbitrary/fixed one - d_iwad.c's
+                // IdentifyIWADByName() maps well-known IWAD filenames (doom.wad,
+                // doom1.wad, doom2.wad, tnt.wad, ...) straight to a gamemission/
+                // gamemode, *before* d_main.c's D_IdentifyVersion() ever looks at
+                // the WAD's actual lumps. A fixed "doom1.wad" name previously
+                // forced every IWAD to be treated as shareware Doom 1 regardless
+                // of its real contents (e.g. loading DOOM2.WAD still tried to
+                // play E1M1's music and failed with "d_e1m1 not found").
+                //
+                // The PWAD and DeHackEd patch keep fixed internal names since
+                // nothing in the engine identifies them by filename - they're
                 // optional and only fetched/loaded if config.pwadUrl/dehUrl is
                 // set - see DOOM_PWAD_PATH/DOOM_DEH_PATH in docker-entrypoint.sh.
+                const iwadName = config.iwadUrl.split("/").pop();
                 const optionalFiles = [
                     config.pwadUrl && { name: "custom.wad", url: config.pwadUrl, args: ["-file", "custom.wad"] },
                     config.dehUrl && { name: "custom.deh", url: config.dehUrl, args: ["-deh", "custom.deh"] },
@@ -112,7 +120,7 @@ var Module = {
                     const petArgs = config.playerName ? ["-pet", config.playerName] : [];
 
                     const args = [
-                        "-iwad", "doom1.wad",
+                        "-iwad", iwadName,
                         "-window",
                         "-nogui",
                         "-nomusic",
@@ -131,7 +139,7 @@ var Module = {
                     setStatusText(`Failed to download ${path}`);
                 };
 
-                Module.FS.createPreloadedFile("", "doom1.wad", config.iwadUrl, true, true, onOneLoaded, () => onLoadError(config.iwadUrl));
+                Module.FS.createPreloadedFile("", iwadName, config.iwadUrl, true, true, onOneLoaded, () => onLoadError(config.iwadUrl));
                 Module.FS.createPreloadedFile("", "default.cfg", "default.cfg", true, true, onOneLoaded, () => onLoadError("default.cfg"));
                 for (const f of optionalFiles) {
                     Module.FS.createPreloadedFile("", f.name, f.url, true, true, onOneLoaded, () => onLoadError(f.url));

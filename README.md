@@ -3,8 +3,10 @@
 Multiplayer Doom, playable straight in the browser, pointed at your own
 dedicated server. For the people you invite to play: no client install, no
 router config, just a URL and a password. Everything here is open source
-and packaged as a docker-compose stack so anyone running a homelab server
-can stand up their own copy.
+and ships as a single container image
+([`ghcr.io/benmclean/cloudydoom`](https://github.com/BenMcLean/CloudyDoom/pkgs/container/cloudydoom))
+plus a docker-compose file, so anyone running a homelab server can stand up
+their own copy with `docker compose up -d`.
 
 That "no setup" experience is only true for players - **you, running the
 server, still need to expose it to the internet**, same as hosting any
@@ -39,15 +41,27 @@ below.
    +-----------+              +-------------+
    (WS <-> UDP               (real Chocolate Doom
     translator)                dedicated server)
+
+   \_____________________ one container ______________________/
 ```
 
-Three services, three published ports:
+Three processes, one container, three published ports - `nginx`, `gateway`
+and `doom-server` are supervised together in a single image by
+[s6-overlay](https://github.com/just-containers/s6-overlay) (see the root
+`Dockerfile` and `rootfs/etc/s6-overlay/`), rather than three separate
+containers on a compose network. They still talk to each other exactly as
+the diagram shows, just over `localhost` instead of Docker's inter-container
+DNS.
 
-| Service | What it is | Port |
+| Process | What it is | Port |
 |---|---|---|
-| `nginx` | Serves the WASM Doom client (built from [`cloudflare/doom-wasm`](https://github.com/cloudflare/doom-wasm), vendored in `doom-wasm/`) behind HTTP Basic Auth. Also serves the IWAD file, so the auth gate covers commercial WADs too. | `WEB_HTTP_PORT` (default `8080`, tcp) |
-| `gateway` | The only genuinely new piece here. Browsers can't open raw UDP sockets, so this translates doom-wasm's WebSocket framing into plain UDP and back, giving each browser client its own UDP socket so the dedicated server can tell them apart exactly like real UDP clients. | `GATEWAY_WS_PORT` (default `8081`, tcp) |
 | `doom-server` | A real, unmodified Chocolate Doom dedicated server (`chocolate-server`, built from source at a pinned upstream tag newer than the WASM client's fork version, since the wire protocol has stayed compatible - see [Why a newer version works](#why-a-newer-version-works)). It has no idea any of this WebSocket business exists; it just sees UDP clients. | `DOOM_SERVER_PORT` (default `2342`, **udp**) |
+| `gateway` | The only genuinely new piece here. Browsers can't open raw UDP sockets, so this translates doom-wasm's WebSocket framing into plain UDP and back, giving each browser client its own UDP socket so the dedicated server can tell them apart exactly like real UDP clients. | `GATEWAY_WS_PORT` (default `2343`, tcp) |
+| `nginx` | Serves the WASM Doom client (built from [`cloudflare/doom-wasm`](https://github.com/cloudflare/doom-wasm), fetched at a pinned commit during the Docker build - see the Dockerfile) behind HTTP Basic Auth. Also serves the IWAD file, so the auth gate covers commercial WADs too. | `WEB_HTTP_PORT` (default `2344`, tcp) |
+
+The three defaults sit right next to each other (`2342`/`2343`/`2344`) so
+they're easy to remember as a group - each is independently overridable if
+one of them collides with something else on your server.
 
 Because `doom-server`'s UDP port is published directly (not only reachable
 through the gateway), native Chocolate Doom clients connect straight to it
@@ -55,22 +69,94 @@ and land in the same game as everyone playing through the browser.
 
 ## Quick start
 
+No source checkout needed - this is a published image
+([`ghcr.io/benmclean/cloudydoom`](https://github.com/BenMcLean/CloudyDoom/pkgs/container/cloudydoom),
+built by this repo's own
+[`docker-publish.yml`](.github/workflows/docker-publish.yml) workflow).
+Paste this into a `docker-compose.yml` on your server:
+
+```yaml
+# The dedicated server's port needs to be set in two places below.
+# Defined ONCE here instead, so this is the one number to change, not two.
+x-doom-server-port: &doom_server_port 2342
+
+services:
+  cloudydoom:
+    image: ghcr.io/benmclean/cloudydoom:latest
+    ports:
+      - target: *doom_server_port
+        published: *doom_server_port
+        protocol: udp
+      - "2343:2343"       # websocket gateway
+      - "2344:2344"       # web client (http)
+    environment:
+      DOOM_SERVER_PORT: *doom_server_port
+      # The websocket URL browsers will connect to - has to be reachable
+      # from wherever your players are, not just this server. The ":2343"
+      # here is only for connecting straight to GATEWAY_WS_PORT with no
+      # proxy in front. Behind a reverse proxy (recommended - see "Putting
+      # this behind a reverse proxy / TLS" below), drop the port entirely,
+      # e.g. "wss://doom.example.com", since your proxy terminates 443 and
+      # forwards to 2343 internally. Full details:
+      # https://github.com/BenMcLean/CloudyDoom#configuration
+      DOOM_WS_URL: wss://doom.example.com
+      # Shared login password. Leave blank for a public server with
+      # nothing to gate (e.g. a Freedoom IWAD instead of a commercial one).
+      PASSWORD: changeme
+    volumes:
+      # "host:container" - same rule as the ports above: only change the
+      # host side (left of the colon, currently "./wads"). Point it at
+      # wherever you keep your WAD files, e.g. "/srv/doom-wads:/wads:ro".
+      # Leave ":/wads:ro" (right of the colon) exactly as shown.
+      - ./wads:/wads:ro
+    restart: unless-stopped
 ```
-git clone --recurse-submodules <this repo's URL>   # or just git clone, doom-wasm/ is a subtree, not a submodule
-cd doom
+
+Then:
+
+```
+mkdir -p wads && cp /path/to/your/DOOM2.WAD wads/   # see "Getting an IWAD" below
+docker compose up -d
+```
+
+Open `http://<host>:2344`, log in with any username and the shared password,
+and play - the username you type becomes your in-game player name.
+
+The block above is a trimmed-down starting point. For every optional setting
+(PWAD/DeHackEd patches, extra game flags, PUID/PGID, port overrides, ...),
+use this repo's own [`docker-compose.yml`](docker-compose.yml) +
+[`.env.example`](.env.example) instead, either by cloning the repo or
+fetching just those two files:
+
+```
+curl -O https://raw.githubusercontent.com/BenMcLean/CloudyDoom/master/docker-compose.yml
+curl -O https://raw.githubusercontent.com/BenMcLean/CloudyDoom/master/.env.example
 cp .env.example .env
 $EDITOR .env   # set DOOM_WS_URL at minimum, and PASSWORD if you're gating a commercial IWAD
-mkdir -p wads && cp /path/to/your/DOOM2.WAD wads/   # see "Getting an IWAD" below
+mkdir -p wads && cp /path/to/your/DOOM2.WAD wads/
+docker compose up -d
+```
+
+### Building from source instead of pulling the image
+
+If you're testing a local change, clone the repo instead - `docker-compose.yml`
+already has `build: .` alongside `image:`, so `docker compose up -d --build`
+builds from your checkout and tags it locally rather than pulling:
+
+```
+git clone <this repo's URL>
+cd CloudyDoom
+cp .env.example .env && $EDITOR .env
 docker compose up -d --build
 ```
 
-Then open `http://<host>:8080` (or whatever `WEB_HTTP_PORT` you set), log in
-with any username and the shared password, and play - the username you type
-becomes your in-game player name.
-
-`doom-wasm/` is a **git subtree**, not a submodule, so a plain `git clone`
-already includes it - no `--recurse-submodules` actually required, that's
-just there as a habit-guard in case you're used to submodule-based repos.
+No submodules to worry about here, either - `doom-wasm` isn't vendored into
+this repo at all. It's fetched fresh from
+[`cloudflare/doom-wasm`](https://github.com/cloudflare/doom-wasm) at a
+pinned commit inside the Docker build itself (see `DOOM_WASM_REF` in the
+Dockerfile's `wasm-builder` stage), which keeps the build reproducible
+without keeping a second copy of someone else's source tree in this repo's
+history.
 
 ### Configuration
 
@@ -107,9 +193,9 @@ of the file for exact names, then delete whatever you don't need:
 DOOM_WS_URL=wss://doom.example.com
 PASSWORD=changeme
 USE_LOGIN_NAME=true
-WEB_HTTP_PORT=8080
-GATEWAY_WS_PORT=8081
 DOOM_SERVER_PORT=2342
+GATEWAY_WS_PORT=2343
+WEB_HTTP_PORT=2344
 WAD_DIR=./wads
 DOOM_IWAD_PATH=DOOM2.WAD
 DOOM_PWAD_PATH=MYMAPS.WAD
@@ -140,13 +226,13 @@ only `nginx` serves it to the browser client.
 Set `DOOM_IWAD_PATH` to the filename you dropped in (defaults to
 `doom1.wad`).
 
-`WAD_DIR` is mounted **read-only** into `nginx` - it can serve from there,
-never write to it. On a real Linux host, nginx also needs to actually be
-able to *read* whatever's in that directory in the first place: it runs as
-its own built-in `nginx` user (uid/gid 101) by default, which won't be able
-to read a directory owned by, say, a dedicated media/homelab user on your
-system. If you hit a permission error here, set `PUID`/`PGID` in `.env` to
-match that directory's actual owner - see `.env.example`.
+`WAD_DIR` is mounted **read-only** into the container - it can serve from
+there, never write to it. On a real Linux host, the container also needs to
+actually be able to *read* whatever's in that directory in the first place:
+it runs as its own built-in `nginx` user (uid/gid 101) by default, which
+won't be able to read a directory owned by, say, a dedicated media/homelab
+user on your system. If you hit a permission error here, set `PUID`/`PGID`
+in `.env` to match that directory's actual owner - see `.env.example`.
 
 ### Using a PWAD or a DeHackEd (.deh) patch
 
@@ -203,22 +289,22 @@ DOOM_EXTRA_ARGS=-skill 4 -deathmatch -fast -warp 5 -timer 10
 
 ## Deploying with Portainer
 
-Since the build contexts (`./gateway`, `./doom-server`, `nginx/Dockerfile`)
-need the actual source tree next to the compose file, **use Portainer's
-"Repository" stack type**, not the web-editor/paste-YAML method - pasting
-just the YAML has no access to the Dockerfiles it references and the build
-will fail.
+Since the compose file pulls the published `ghcr.io/benmclean/cloudydoom`
+image (see [Quick start](#quick-start) above), Portainer's **web-editor
+("Web editor") stack type works fine** - paste `docker-compose.yml`'s
+contents directly, no repository access to a Dockerfile needed:
 
-1. Push this repo somewhere Portainer's host can reach (GitHub, a private
-   Gitea instance, etc.).
-2. **Stacks → Add stack → Repository.**
-3. Repository URL: this repo's URL. Compose path: `docker-compose.yml`
-   (the default).
-4. Under **Environment variables**, add `DOOM_WS_URL`, `PASSWORD`,
+1. **Stacks → Add stack → Web editor.**
+2. Paste in the contents of `docker-compose.yml`.
+3. Under **Environment variables**, add `DOOM_WS_URL`, `PASSWORD`,
    and any of the optional overrides from `.env.example` you want to
    change - this is Portainer's equivalent of the `.env` file.
-5. Deploy the stack. Portainer clones the repo and runs
-   `docker compose up -d --build` for you.
+4. Deploy the stack. Portainer pulls the image and starts the container.
+
+(You can still use Portainer's "Repository" stack type pointed at this repo
+if you'd rather build from source than pull the published image - just be
+aware that mode rebuilds on every redeploy unless you remove `build: .` from
+your copy of the compose file.)
 
 One homelab-specific gotcha: Portainer's git-based stacks can end up
 re-cloned on redeploy, which would wipe a WAD dropped straight into the
@@ -285,16 +371,16 @@ Add two Proxy Hosts (NPM's "Hosts → Proxy Hosts → Add Proxy Host"):
 
 1. **The website**, if it isn't already behind Cloudflare directly:
    - Domain: `doom.example.com`
-   - Forward to: `<your-server's-LAN-IP>:8080` (or the `nginx` container's
-     name/port if NPM shares a Docker network with this stack - see note
-     below)
+   - Forward to: `<your-server's-LAN-IP>:2344` (or the `cloudydoom`
+     container's name/port if NPM shares a Docker network with this stack -
+     see note below)
    - Request a new SSL certificate, force SSL - standard stuff, same as
      any other app you've already proxied through NPM.
 
 2. **The WebSocket gateway** - this is the one with a step that's easy to
    miss:
    - Domain: `notproxied.example.com`
-   - Forward to: `<your-server's-LAN-IP>:8081`
+   - Forward to: `<your-server's-LAN-IP>:2343`
    - On the **Details** tab, enable **"Websockets Support"**. Without this,
      NPM won't forward the `Upgrade`/`Connection` headers the WebSocket
      handshake needs, and every browser client will fail to connect with
@@ -303,21 +389,31 @@ Add two Proxy Hosts (NPM's "Hosts → Proxy Hosts → Add Proxy Host"):
 
 Then set `DOOM_WS_URL=wss://notproxied.example.com` in `.env` (or
 Portainer's environment variables) - no custom port needed, since NPM
-terminates `443` and forwards internally to `gateway`'s `8081`.
+terminates `443` and forwards internally to the gateway's `2343`.
 
 **Docker networking note:** if NPM runs as its own separate compose stack
-(as it typically does), it can reach `nginx`/`gateway` simply via your
-server's own IP and the ports this project already publishes to the host
+(as it typically does), it can reach the container simply via your server's
+own IP and the ports this project already publishes to the host
 (`WEB_HTTP_PORT`/`GATEWAY_WS_PORT`) - no changes needed here. If you'd
 rather avoid that host-network hairpin and proxy by container name instead,
-join `nginx`/`gateway` to NPM's Docker network in your own compose
-override and point NPM at `nginx:8080`/`gateway:8081` directly.
+join `cloudydoom` to NPM's Docker network in your own compose override and
+point NPM at `cloudydoom:2344`/`cloudydoom:2343` directly.
 
 **`DOOM_SERVER_PORT` (raw UDP) can't go through NPM either** - nginx-based
 reverse proxies are HTTP(S)/WebSocket-only, the same fundamental
 limitation as Cloudflare's standard proxy, just for a config reason rather
 than a product-tier one. Forward it straight through your router to
 `doom-server`, same as you would for any other UDP game server.
+
+## Updating
+
+`docker-compose.yml` pins `ghcr.io/benmclean/cloudydoom:latest`, which
+tracks `master` - `docker compose pull && docker compose up -d` picks up
+the newest published image. Pin a specific released version instead
+(`ghcr.io/benmclean/cloudydoom:1.2.3`, published whenever this repo tags a
+`v1.2.3` release) if you'd rather control upgrades explicitly - see
+[Publish Docker image](.github/workflows/docker-publish.yml) for exactly
+which tags get pushed and when.
 
 ## Troubleshooting
 
@@ -326,9 +422,9 @@ than a product-tier one. Forward it straight through your router to
   stdout is fully-buffered (not line-buffered) when it isn't a TTY, which is
   always true under Docker, so `chocolate-server`'s own logging silently
   vanishes into a buffer instead of reaching `docker logs`. Already fixed
-  here (`doom-server/docker-entrypoint.sh` wraps it in `stdbuf -oL -eL`) -
-  if you see this again after modifying that file, that's the first thing
-  to check.
+  here (`rootfs/etc/s6-overlay/s6-rc.d/svc-doom-server/run` wraps it in
+  `stdbuf -oL -eL`) - if you see this again after modifying that file,
+  that's the first thing to check.
 - **`NET_CL_ParseSYN: ... mismatch may cause the game to desync` in the
   browser console**: harmless. It's comparing the WASM client's build
   identifier (`Websockets Doom 0.0.1`) against the dedicated server's
@@ -340,9 +436,9 @@ than a product-tier one. Forward it straight through your router to
 ## Why a newer version works
 
 `doom-wasm`'s netcode is a fork of Chocolate Doom 3.0.0, while
-`doom-server` runs a newer version built from source - see the comment at
-the top of `doom-server/Dockerfile` for why that version gap is safe and
-what to re-verify before widening it further.
+`doom-server` runs a newer version built from source - see the comment above
+the `doom-server-builder` stage in the root `Dockerfile` for why that
+version gap is safe and what to re-verify before widening it further.
 
 ## Why the dedicated server needs no WAD at all
 
@@ -358,10 +454,12 @@ the first place.
 ## Credits / license
 
 - [`cloudflare/doom-wasm`](https://github.com/cloudflare/doom-wasm) - the
-  Chocolate Doom → WebAssembly port this is built on, vendored in
-  `doom-wasm/` as a git subtree.
+  Chocolate Doom → WebAssembly port this is built on, fetched at a pinned
+  commit during the Docker build (see `DOOM_WASM_REF` in the Dockerfile),
+  not vendored into this repo.
 - [Chocolate Doom](https://www.chocolate-doom.org/) - the underlying source
-  port; see `doom-wasm/COPYING.md` for its GPL license text, which also
-  covers the compiled client and dedicated server here.
+  port; see [`doom-wasm`'s `COPYING.md`](https://github.com/cloudflare/doom-wasm/blob/main/COPYING.md)
+  for its GPL license text, which also covers the compiled client and
+  dedicated server here.
 - [Freedoom](https://freedoom.github.io/) - free IWAD used to verify this
   stack, if you don't have a commercial WAD handy.

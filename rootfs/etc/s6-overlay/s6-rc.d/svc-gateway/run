@@ -1,0 +1,7 @@
+#!/bin/sh
+# The gateway now talks to chocolate-server over loopback - both run in the
+# same container, unlike the old separate-containers setup where it dialed a
+# "doom-server" service hostname over the compose network.
+export DOOM_SERVER_HOST="${DOOM_SERVER_HOST:-localhost}"
+cd /app/gateway
+exec node gateway.js

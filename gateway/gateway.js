@@ -4,7 +4,7 @@ const dgram = require("dgram");
 const { WebSocketServer } = require("ws");
 
 // --- Config, all overridable from docker-compose ---
-const WS_PORT = parseInt(process.env.WS_PORT || "8081", 10);
+const WS_PORT = parseInt(process.env.WS_PORT || "2343", 10);
 const DOOM_SERVER_HOST = process.env.DOOM_SERVER_HOST;
 const DOOM_SERVER_PORT = parseInt(process.env.DOOM_SERVER_PORT || "2342", 10);
 // Per-packet traffic logging is off by default - doom's netcode sends

@@ -1,0 +1,80 @@
+name: Publish Docker image
+
+# Pushes to master publish ":latest" (also usable as an ":edge" if you'd
+# rather track unreleased master - see the "type=raw,value=latest" line
+# below). Pushing a "vX.Y.Z" tag additionally publishes ":X.Y.Z", ":X.Y" and
+# ":X" - see docker/metadata-action's "type=semver" patterns below.
+on:
+  push:
+    branches: [master]
+    tags: ["v*.*.*"]
+  # Lets you trigger a rebuild by hand from the Actions tab without needing
+  # a new commit/tag - e.g. after a base image security update.
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  # amd64 on every push to master (fast, cheap, what ":latest" needs day to
+  # day). arm64 only gets built for a tagged "vX.Y.Z" release - this image
+  # cross-compiles two sizeable C codebases (chocolate-doom + the emscripten
+  # doom-wasm build) at build time, and doing that for arm64 too means
+  # QEMU-emulating the whole compile, which is dramatically slower than
+  # native amd64 and would burn Actions minutes on every single commit if it
+  # ran on every master push instead of just releases.
+  PLATFORMS: ${{ startsWith(github.ref, 'refs/tags/v') && 'linux/amd64,linux/arm64' || 'linux/amd64' }}
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      # contents:read to check out the repo, packages:write to push to
+      # GHCR - both satisfied by the workflow's own automatic GITHUB_TOKEN,
+      # no separate PAT/secret needed.
+      contents: read
+      packages: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          # No submodules here - doom-wasm is fetched fresh inside the
+          # Docker build itself (see the Dockerfile's wasm-builder stage),
+          # not vendored into this repo.
+          fetch-depth: 1
+
+      # Only exercised on a tagged release, when PLATFORMS above includes
+      # arm64 - a harmless no-op on an ordinary master push.
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Derive image tags/labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

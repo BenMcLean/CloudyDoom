@@ -1,8 +1,6 @@
-# This repo builds Linux containers, and doom-wasm/ vendors Chocolate Doom's
-# autotools build (configure.ac, Makefile.am). CRLF anywhere in those breaks
-# the build inside the container - autoconf chokes on an embedded \r in the
-# AC_OUTPUT file list, and CRLF shebangs fail with "not found". Force LF for
-# all text files regardless of the checkout platform's core.autocrlf.
+# This repo builds Linux containers, and its shell scripts (rootfs/) run
+# inside them. CRLF shebangs fail with "not found" there. Force LF for all
+# text files regardless of the checkout platform's core.autocrlf.
 * text=auto eol=lf
 
 # Keep real binaries untouched.

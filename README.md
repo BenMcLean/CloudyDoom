@@ -106,6 +106,7 @@ services:
       DOOM_IWAD_PATH: DOOM2.WAD
       DOOM_PWAD_PATH: dwango5.wad
       DOOM_DEH_PATH: example.deh
+      DOOM_EXTRA_ARGS: -skill 4 -deathmatch -fast -warp 5 -timer 10
     volumes:
       # "host:container" - same rule as the ports above: only change the
       # host side (left of the colon, currently "./wads"). Point it at
@@ -413,8 +414,10 @@ than a product-tier one. Forward it straight through your router to
 `docker-compose.yml` pins `ghcr.io/benmclean/cloudydoom:latest`, which
 tracks `master` - `docker compose pull && docker compose up -d` picks up
 the newest published image. Pin a specific released version instead
-(`ghcr.io/benmclean/cloudydoom:1.2.3`, published whenever this repo tags a
-`v1.2.3` release) if you'd rather control upgrades explicitly - see
+(`ghcr.io/benmclean/cloudydoom:2026-09-23`, published whenever this repo
+tags a `v2026-09-23` release - date-based, optionally suffixed with a
+letter for a same-day re-release, e.g. `v2026-09-23b`) if you'd rather
+control upgrades explicitly - see
 [Publish Docker image](.github/workflows/docker-publish.yml) for exactly
 which tags get pushed and when.
 
@@ -455,14 +458,11 @@ non-issue - there's no simulation running server-side to diverge from in
 the first place.
 
 ## Credits / license
+- [`cloudflare/doom-wasm`](https://github.com/cloudflare/doom-wasm): the Chocolate Doom → WebAssembly port this is built on (see `DOOM_WASM_REF` in the Dockerfile)
+- [Chocolate Doom](https://www.chocolate-doom.org/): the underlying source port; see [`doom-wasm`'s `COPYING.md`](https://github.com/cloudflare/doom-wasm/blob/main/COPYING.md) for its GPL license text, which also covers the compiled client and dedicated server here.
+- [Freedoom](https://freedoom.github.io/): a free IWAD, if you don't have a commercial WAD handy. Used for testing.
 
-- [`cloudflare/doom-wasm`](https://github.com/cloudflare/doom-wasm) - the
-  Chocolate Doom → WebAssembly port this is built on, fetched at a pinned
-  commit during the Docker build (see `DOOM_WASM_REF` in the Dockerfile),
-  not vendored into this repo.
-- [Chocolate Doom](https://www.chocolate-doom.org/) - the underlying source
-  port; see [`doom-wasm`'s `COPYING.md`](https://github.com/cloudflare/doom-wasm/blob/main/COPYING.md)
-  for its GPL license text, which also covers the compiled client and
-  dedicated server here.
-- [Freedoom](https://freedoom.github.io/) - free IWAD used to verify this
-  stack, if you don't have a commercial WAD handy.
+# Other projects
+- [CloudyQuake](https://github.com/BenMcLean/CloudyQuake): same idea as CloudyDoom, but for the Quake series.
+- [CloudyTIC80](https://github.com/BenMcLean/CloudyTIC80): run TIC-80 in the browser, but save/load carts to/from the server.
+- [WolfSharp](https://github.com/BenMcLean/WolfSharp): Wolfenstein 3-D rewritten in C# for virtual reality.

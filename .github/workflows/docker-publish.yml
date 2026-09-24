@@ -2,12 +2,13 @@ name: Publish Docker image
 
 # Pushes to master publish ":latest" (also usable as an ":edge" if you'd
 # rather track unreleased master - see the "type=raw,value=latest" line
-# below). Pushing a "vX.Y.Z" tag additionally publishes ":X.Y.Z", ":X.Y" and
-# ":X" - see docker/metadata-action's "type=semver" patterns below.
+# below). Pushing a tag like "v2026-09-23" (optionally suffixed with a
+# letter for a same-day re-release, e.g. "v2026-09-23b") additionally
+# publishes an image tagged with that exact string.
 on:
   push:
     branches: [master]
-    tags: ["v*.*.*"]
+    tags: ["v*"]
   # Lets you trigger a rebuild by hand from the Actions tab without needing
   # a new commit/tag - e.g. after a base image security update.
   workflow_dispatch:
@@ -16,7 +17,7 @@ env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
   # amd64 on every push to master (fast, cheap, what ":latest" needs day to
-  # day). arm64 only gets built for a tagged "vX.Y.Z" release - this image
+  # day). arm64 only gets built for a tagged "vYYYY-MM-DD" release - this image
   # cross-compiles two sizeable C codebases (chocolate-doom + the emscripten
   # doom-wasm build) at build time, and doing that for arm64 too means
   # QEMU-emulating the whole compile, which is dramatically slower than
@@ -64,9 +65,7 @@ jobs:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=semver,pattern={{major}}
+            type=ref,event=tag
 
       - name: Build and push
         uses: docker/build-push-action@v6

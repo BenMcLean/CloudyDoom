@@ -103,6 +103,8 @@ services:
       # Shared login password. Leave blank for a public server with
       # nothing to gate (e.g. a Freedoom IWAD instead of a commercial one).
       PASSWORD: changeme
+      DOOM_IWAD_PATH: DOOM2.WAD
+      DOOM_PWAD_PATH: dwango5.wad
     volumes:
       # "host:container" - same rule as the ports above: only change the
       # host side (left of the colon, currently "./wads"). Point it at

@@ -14,4 +14,9 @@ DOOM_SERVER_PORT="${DOOM_SERVER_PORT:-2342}"
 # Logged to stderr's stream, which s6-overlay's own logging picks up via
 # `docker logs`, not a file on a volume, since nothing here needs it to
 # survive a container restart.
-exec stdbuf -oL -eL /usr/games/chocolate-server -port "$DOOM_SERVER_PORT" -netlog /dev/stderr
+#
+# -privateserver stops it registering itself with master.chocolate-doom.org
+# (see NET_SV_RegisterWithMaster in net_server.c) - it's on unconditionally,
+# not configurable, since nothing about this WASM/gateway setup makes
+# advertising on the native Doom master server list meaningful.
+exec stdbuf -oL -eL /usr/games/chocolate-server -port "$DOOM_SERVER_PORT" -privateserver -netlog /dev/stderr

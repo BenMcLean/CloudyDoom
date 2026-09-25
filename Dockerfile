@@ -14,7 +14,16 @@
 # to lose. Pinned to a specific commit, not a floating branch, for the same
 # reproducibility reason CHOCOLATE_DOOM_REF below is a tag rather than
 # "master" - bump DOOM_WASM_REF deliberately, don't let it drift.
-FROM emscripten/emsdk:2.0.34 AS wasm-builder
+#
+# --platform=$BUILDPLATFORM pins this stage to the build host's own
+# architecture regardless of which platform(s) the final image targets
+# (see docker-publish.yml's PLATFORMS). The output here is WASM bytecode +
+# JS glue - architecture-independent - so without this, a multi-platform
+# buildx run would QEMU-emulate this whole emscripten compile a second time
+# for arm64 to produce byte-identical output. doom-server-builder below
+# deliberately has no such pin: it compiles a real native ELF binary, so it
+# needs to run once per target platform.
+FROM --platform=$BUILDPLATFORM emscripten/emsdk:2.0.34 AS wasm-builder
 
 ARG DOOM_WASM_REF=65e0d3ae2ffa604155eebd96ed40da6567bd08f4
 

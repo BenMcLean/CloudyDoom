@@ -91,6 +91,9 @@ services:
       - "2344:2344"       # web client (http)
     environment:
       DOOM_SERVER_PORT: *doom_server_port
+      # "normal" logs only failed web requests; "verbose" logs all of them;
+      # "packets" also logs every game packet (very noisy, for debugging).
+      LOG_LEVEL: normal
       # The websocket URL browsers will connect to - has to be reachable
       # from wherever your players are, not just this server. The ":2343"
       # here is only for connecting straight to GATEWAY_WS_PORT with no
@@ -114,6 +117,13 @@ services:
       # Leave ":/wads:ro" (right of the colon) exactly as shown.
       - ./wads:/wads:ro
     restart: unless-stopped
+    # Docker keeps container logs forever by default. This caps them at
+    # about 30 MB (3 files of 10 MB), oldest dropped first.
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
 ```
 
 Then:
@@ -122,6 +132,25 @@ Then:
 mkdir -p wads && cp /path/to/your/DOOM2.WAD wads/   # see "Getting an IWAD" below
 docker compose up -d
 ```
+
+Logs go to the container's output (`docker compose logs -f`), never to files.
+The `logging:` block above caps them at about 30 MB. If you use `docker run`
+instead, add `--log-opt max-size=10m --log-opt max-file=3`. Only failed web
+requests are logged unless you set `LOG_LEVEL: verbose`. `LOG_LEVEL: packets`
+adds the gateway's per-packet logging on top (35 lines a second per player),
+so use it only briefly.
+
+**Login guessing is throttled.** Failed logins are limited to 10 a minute per
+client address (then HTTP 429). Behind a reverse proxy all players share the
+proxy's address unless you set up nginx's `real_ip` module, so the limit is
+shared between them. The container also has a Docker health check, and logs a
+warning at startup if `PASSWORD` is still `changeme`.
+
+**Keeping the password out of the compose file.** Instead of `PASSWORD`, you
+can set `PASSWORD_FILE` to the path of a file inside the container that holds
+it, for example a Docker secret: `PASSWORD_FILE: /run/secrets/cloudydoom_password`
+(declare the secret in your compose file's `secrets:` section and list it under
+the service). `PASSWORD` still works as before and wins if both are set.
 
 Open `http://<host>:2344`, log in with any username and the shared password,
 and play - the username you type becomes your in-game player name.

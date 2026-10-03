@@ -1,2 +1,27 @@
 #!/bin/sh
+# PASSWORD_FILE: optional alternative to putting PASSWORD in the compose
+# file, e.g. a Docker secret at /run/secrets/cloudydoom_password. A plain
+# PASSWORD always wins if both are set. nginx's auth.js is the only reader.
+if [ -z "${PASSWORD:-}" ] && [ -n "${PASSWORD_FILE:-}" ]; then
+    if [ ! -r "$PASSWORD_FILE" ]; then
+        echo "ERROR: PASSWORD_FILE '$PASSWORD_FILE' is not a readable file" >&2
+        # Stop the container, once. A plain "exit 1" would make s6 restart this
+        # service every second, repeating the error forever.
+        exec /run/s6/basedir/bin/halt
+    fi
+    PASSWORD=$(cat "$PASSWORD_FILE")
+    export PASSWORD
+fi
+if [ "${PASSWORD:-}" = "changeme" ]; then
+    echo "WARNING: PASSWORD is still the example value 'changeme' - anyone who has read the README can log in. Set your own." >&2
+fi
+# LOG_LEVEL=verbose (or packets) logs every web request; the default only logs failures
+# (4xx/5xx), since successful requests would drown out everything else.
+# nginx can't read env vars in its config, so write the filter it includes.
+case "${LOG_LEVEL:-normal}" in
+    verbose|packets)
+        printf 'map $status $loggable { default 1; }\n' > /run/log-filter.conf ;;
+    *)
+        printf 'map $status $loggable { ~^[23] 0; default 1; }\n' > /run/log-filter.conf ;;
+esac
 exec nginx -g 'daemon off;'

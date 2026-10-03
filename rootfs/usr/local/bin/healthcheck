@@ -1,0 +1,26 @@
+#!/bin/bash
+# Docker HEALTHCHECK: healthy only if every service in the container is up,
+# not just nginx. Prints the reason to stderr when not.
+fail() { echo "unhealthy: $*" >&2; exit 1; }
+
+# s6 supervises every service; "false" means down or restarting. The service
+# directories live in one of two places depending on how s6-overlay is set up.
+svc_up() {
+    local d
+    for d in /run/service /run/s6-rc/scandir; do
+        [ -d "$d/$1" ] && [ "$(/command/s6-svstat -o up "$d/$1" 2>/dev/null)" = "true" ] && return 0
+    done
+    return 1
+}
+
+curl -fsS -o /dev/null --max-time 4 http://127.0.0.1:2344/favicon.ico \
+    || fail "nginx is not answering on :2344"
+
+# chocolate-server only speaks UDP and has no status query, so for it
+# supervision state is the best available signal.
+svc_up svc-doom-server || fail "chocolate-server is not running"
+
+svc_up svc-gateway || fail "gateway is not running"
+(exec 3<>"/dev/tcp/127.0.0.1/${GATEWAY_WS_PORT:-2343}") 2>/dev/null \
+    || fail "gateway is not accepting connections"
+exit 0

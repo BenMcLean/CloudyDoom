@@ -9,8 +9,8 @@ const DOOM_SERVER_HOST = process.env.DOOM_SERVER_HOST;
 const DOOM_SERVER_PORT = parseInt(process.env.DOOM_SERVER_PORT || "2342", 10);
 // Per-packet traffic logging is off by default - doom's netcode sends
 // packets every game tic (35/sec/client), which floods logs with no
-// rotation configured. Set DEBUG_PACKETS=true to re-enable for debugging.
-const DEBUG_PACKETS = process.env.DEBUG_PACKETS === "true";
+// rotation configured. Set LOG_LEVEL=packets to re-enable for debugging.
+const DEBUG_PACKETS = process.env.LOG_LEVEL === "packets";
 
 if (!DOOM_SERVER_HOST) {
     console.error("DOOM_SERVER_HOST must be set, e.g. doom-server");

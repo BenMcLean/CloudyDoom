@@ -153,7 +153,8 @@ RUN chmod +x \
         /etc/s6-overlay/scripts/prepare-nginx.sh \
         /etc/s6-overlay/s6-rc.d/svc-nginx/run \
         /etc/s6-overlay/s6-rc.d/svc-gateway/run \
-        /etc/s6-overlay/s6-rc.d/svc-doom-server/run
+        /etc/s6-overlay/s6-rc.d/svc-doom-server/run \
+        /usr/local/bin/healthcheck
 
 # Mount point for the IWAD volume - see DOOM_IWAD_PATH in
 # rootfs/etc/s6-overlay/scripts/prepare-nginx.sh.
@@ -183,5 +184,9 @@ RUN mkdir -p /var/cache/nginx /var/lib/nginx/body /var/lib/nginx/proxy \
 # 2343/2342 (nginx/gateway/doom-server) are the defaults, chosen to sit next
 # to each other - see the README's port table.
 EXPOSE 2344 2343 2342/udp
+
+# Healthy only when every service in the container is up and answering -
+# see /usr/local/bin/healthcheck.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 CMD ["/usr/local/bin/healthcheck"]
 
 ENTRYPOINT ["/init"]

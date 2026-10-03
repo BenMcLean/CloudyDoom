@@ -56,6 +56,17 @@ function credentials(r) {
     return { user: user, pass: pass };
 }
 
+// Compares without bailing out at the first differing character, so response
+// time doesn't leak how much of a guess was right.
+function safeEqual(a, b) {
+    var diff = a.length ^ b.length;
+    var n = Math.max(a.length, b.length);
+    for (var i = 0; i < n; i++) {
+        diff |= (a.charCodeAt(i) || 0) ^ (b.charCodeAt(i) || 0);
+    }
+    return diff === 0;
+}
+
 function isBlank(s) {
     return /^\s*$/.test(s);
 }
@@ -75,7 +86,7 @@ function authenticate(r) {
     }
 
     var required = process.env.PASSWORD;
-    if (required && creds.pass !== required) {
+    if (required && !safeEqual(creds.pass, required)) {
         return null;
     }
 
@@ -83,9 +94,10 @@ function authenticate(r) {
     return { playerName: playerName };
 }
 
+// Failed/missing credentials go through @unauthorized (see nginx.conf),
+// which rate-limits per client address so passwords can't be guessed fast.
 function unauthorized(r) {
-    r.headersOut['WWW-Authenticate'] = 'Basic realm="doom.example.com"';
-    r.return(401, 'Authorization required\n');
+    r.internalRedirect('@unauthorized');
 }
 
 // location / - static site assets.

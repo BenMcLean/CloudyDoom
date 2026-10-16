@@ -27,6 +27,8 @@ below.
 
 [Previous](https://docs.linuxserver.io/images/docker-gzdoom/) [efforts](https://github.com/B0nam/DOCKER-DOOM) at bringing multiplayer *Doom* to Docker have actually run the game on the server and then streamed gameplay footage to the client. CloudyDoom genuinely renders and plays the game on the client.
 
+[Cloudflare Workers was what Cloudflare was trying to advertise](https://blog.cloudflare.com/doom-multiplayer-workers/) with their `doom-wasm` fork. My CloudyDoom docker image swaps out Cloudflare's backend for a containerized, homelab-friendly backend, but if their [acquisition of Deno](https://youtu.be/l3L_lETiSzc) goes the way its described, then in a few more years, what I did will probably become significantly less necessary, since Cloudflare Workers are expected to become directly self-hostable.
+
 ## How it works
 
 ```

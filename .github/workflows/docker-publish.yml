@@ -34,6 +34,11 @@ jobs:
       # no separate PAT/secret needed.
       contents: read
       packages: write
+      # Needed by actions/attest-build-provenance below: id-token to get a
+      # Sigstore signing identity for this workflow run, attestations to
+      # store the result on the repo.
+      id-token: write
+      attestations: write
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -68,6 +73,7 @@ jobs:
             type=ref,event=tag
 
       - name: Build and push
+        id: push
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -77,3 +83,12 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Signed SLSA provenance, pushed to GHCR alongside the image. Verify
+      # with: gh attestation verify oci://ghcr.io/<owner>/<repo>:<tag> -R <owner>/<repo>
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@v3
+        with:
+          subject-name: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          subject-digest: ${{ steps.push.outputs.digest }}
+          push-to-registry: true

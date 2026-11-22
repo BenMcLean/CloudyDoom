@@ -55,7 +55,7 @@ RUN ./scripts/build.sh
 # client. Verify that still holds (diff net_defs.h's NET_MAGIC_NUMBER and
 # net_server.c's handshake code against cloudflare/doom-wasm's src/) before
 # bumping CHOCOLATE_DOOM_REF to something further out.
-FROM ubuntu:24.04 AS doom-server-builder
+FROM ubuntu:26.04 AS doom-server-builder
 
 ARG CHOCOLATE_DOOM_REF=chocolate-doom-3.1.1
 
@@ -78,7 +78,7 @@ WORKDIR /src
 RUN ./autogen.sh && make -C src chocolate-server
 
 # --- Stage 3: final runtime image ---
-FROM ubuntu:24.04
+FROM ubuntu:26.04
 
 ARG S6_OVERLAY_VERSION=3.2.3.2
 ARG TARGETARCH

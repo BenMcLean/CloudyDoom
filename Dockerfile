@@ -140,8 +140,8 @@ COPY --from=wasm-builder /src/src/websockets-doom.wasm.map /usr/share/nginx/html
 COPY --from=doom-server-builder /src/src/chocolate-server /usr/games/chocolate-server
 
 WORKDIR /app/gateway
-COPY gateway/package.json ./
-RUN npm install --omit=dev
+COPY gateway/package.json gateway/package-lock.json ./
+RUN npm ci --omit=dev
 COPY gateway/gateway.js ./
 
 # --- s6-overlay service definitions ---

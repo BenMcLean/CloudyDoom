@@ -1,0 +1,22 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: monthly
+    ignore:
+      # emsdk is pinned to 2.0.34 deliberately to build doom-wasm; don't auto-bump.
+      - dependency-name: emscripten/emsdk
+
+  - package-ecosystem: npm
+    directory: /gateway
+    schedule:
+      interval: monthly
